@@ -4,12 +4,7 @@ export async function POST(request) {
   try {
     const { userMessage } = await request.json();
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: "API Key is missing on the server" }, { status: 500 });
-    }
-
-    // STEP 1: VALIDATE
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -20,43 +15,32 @@ export async function POST(request) {
         messages: [
           { 
             role: "system", 
-            content: "You are a room-validation AI. If the user prompt is about interior design, furniture, or architecture, reply exactly with 'VALID'. Otherwise, reply 'INVALID'." 
+            content: `You are a friendly, professional Interior Design Assistant named Roomy. 
+            
+            RULES:
+            1. If the user asks about rooms, furniture, colors, or architecture, give helpful, creative, and warm advice.
+            2. If the user asks something totally unrelated (like math or politics), politely explain that you are specialized in interior design and offer to help with a decor project instead.
+            3. Use a natural, conversational tone. Don't be a robot.` 
           },
           { role: "user", content: userMessage }
         ],
+        temperature: 0.7, // Makes it feel more natural and less "robotic"
       }),
     });
 
-    const groqData = await groqResponse.json();
-    const status = groqData.choices?.[0]?.message?.content?.trim();
+    const data = await response.json();
+    
+    // Check if Groq sent back a valid message
+    const aiReply = data.choices?.[0]?.message?.content;
 
-    if (status !== "VALID") {
-      return NextResponse.json({ 
-        reply: "I'm sorry, I can only help with interior design and room-related questions. Could you ask me something about decor or furniture?" 
-      });
+    if (!aiReply) {
+      throw new Error("No response from AI");
     }
 
-    // STEP 2: GENERATE THE ACTUAL REPLY
-    const finalResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: "You are a helpful interior design assistant." },
-          { role: "user", content: userMessage }
-        ],
-      }),
-    });
-
-    const finalData = await finalResponse.json();
-    return NextResponse.json({ reply: finalData.choices[0].message.content });
+    return NextResponse.json({ reply: aiReply });
 
   } catch (error) {
     console.error("Server Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
