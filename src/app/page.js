@@ -1,6 +1,6 @@
-import Silk from '@/components/Silk.jsx';
-import Navbar from '@/components/Navbar';
-import Hero from '@/components/Hero';
+import Silk from '@/components/silk.jsx';
+import Navbar from '@/components/navbar';
+import Hero from '@/components/hero';
 
 export default function Home() {
   return (

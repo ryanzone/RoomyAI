@@ -1,6 +1,6 @@
 import { Raleway, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Chatbot from "@/components/chatbot"; // [1] Import your chatbot component
+import Chatbot from "@/components/chatbot";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -20,9 +20,28 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* THE FIX: This script catches the 404 redirect from GitHub/SPA settings */}
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(l) {
+                if (l.search[1] === '/' ) {
+                  var decoded = l.search.slice(1).split('&').map(function(s) { 
+                    return s.replace(/~and~/g, '&') 
+                  }).join('?');
+                  window.history.replaceState(null, null,
+                      l.pathname.slice(0, -1) + decoded + l.hash
+                  );
+                }
+              }(window.location));
+            `,
+          }}
+        />
+      </head>
       <body className={`${raleway.className} ${geistMono.variable} antialiased`}>
         {children}
-        {/* [2] This stays floating over the Generate and Gallery pages */}
         <Chatbot /> 
       </body>
     </html>

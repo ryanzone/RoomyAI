@@ -1,4 +1,4 @@
-import TextType from '@/components/TextType.jsx';
+import TextType from '@/components/texttype.jsx';
 
 export default function Hero() {
   return (
