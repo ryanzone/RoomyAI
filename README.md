@@ -43,6 +43,7 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 GROQ_API_KEY=your_groq_api_key
 ```
+### 3. Setting up the Project
 ```
 # Clone the repo
 git clone [https://github.com/your-username/roomyai.git](https://github.com/your-username/roomyai.git)
