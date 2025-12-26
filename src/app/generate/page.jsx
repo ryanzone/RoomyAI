@@ -34,8 +34,11 @@ function GenerateContent() {
 
   const handleSaveDesign = async (imageUrl, userPrompt) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error("Auth error:", userError);
+        return;
+      }
 
       const selectedStyle = searchParams.get("style") || "Modern";
 
@@ -51,13 +54,13 @@ function GenerateContent() {
         ]);
 
       if (saveError) {
-        console.error("Error saving:", saveError.message);
+        console.error("Database Save Error:", saveError.message);
       } else {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       }
     } catch (err) {
-      console.error("Supabase Save Error:", err);
+      console.error("Critical Save Error:", err);
     }
   };
 
@@ -71,29 +74,39 @@ function GenerateContent() {
     setSaved(false);
 
     try {
-      // 1. VALIDATION: Check with Groq Cloud via API
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userMessage: prompt }),
-      });
+      // 1. VALIDATION: Check with Chat API
+      let isApproved = true;
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userMessage: prompt }),
+        });
+        const data = await res.json();
+        if (data.isRoom === false) {
+          isApproved = false;
+        }
+      } catch (validationErr) {
+        console.warn("Validation skipped - API unreachable");
+      }
 
-      const data = await res.json();
-
-      if (data.isRoom === false || data.error) {
-        setError(data.error || "Please give the prompt related to the room.");
+      if (!isApproved) {
+        setError("Please provide a prompt related to room design or interior decor.");
         setLoading(false);
         return;
       }
 
       // 2. GENERATION: Pollinations AI
-      const seed = Math.floor(Math.random() * 100000);
+      const seed = Math.floor(Math.random() * 999999);
+      // Clean prompt of special characters that break URLs
+      const cleanPrompt = prompt.trim().replace(/[^\w\s]/gi, '');
       const encodedPrompt = encodeURIComponent(
-        `${prompt}, professional interior design, architectural photography, 8k, realistic`
+        `${cleanPrompt}, high-end professional interior design, architectural photography, 8k, realistic, cinematic lighting`
       );
       
       const aiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
 
+      // Use Image object to verify the URL is fully loaded/generated
       const img = new Image();
       img.src = aiUrl;
       img.onload = async () => {
@@ -102,10 +115,14 @@ function GenerateContent() {
         // 3. AUTO-SAVE to Gallery
         await handleSaveDesign(aiUrl, prompt);
       };
+      img.onerror = () => {
+        setError("The image generation service is currently busy. Try again in a moment.");
+        setLoading(false);
+      };
 
     } catch (err) {
       console.error("Generation failed:", err);
-      setError("An unexpected error occurred.");
+      setError("An unexpected error occurred. Please try again.");
       setLoading(false);
     }
   };
@@ -168,7 +185,7 @@ function GenerateContent() {
               <img src={resultImage} className="w-full h-full object-cover animate-in fade-in duration-1000" alt="AI Generated Room" />
             ) : (
               <div className="text-center px-10">
-                <p className="text-zinc-600 italic">Your architectural masterpiece will appear here.</p>
+                <p className="text-zinc-600 italic text-sm">Your architectural masterpiece will appear here.</p>
               </div>
             )}
 
@@ -188,7 +205,7 @@ function GenerateContent() {
 export default function GeneratePage() {
   return (
     <Bg>
-      <Suspense fallback={<div className="min-h-screen" />}>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-black text-white">Loading Studio...</div>}>
         <GenerateContent />
       </Suspense>
     </Bg>

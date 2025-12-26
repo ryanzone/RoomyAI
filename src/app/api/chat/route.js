@@ -12,35 +12,42 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
+        // We use response_format to ensure the AI actually sends valid JSON
+        response_format: { type: "json_object" },
         messages: [
           { 
             role: "system", 
-            content: `You are a friendly, professional Interior Design Assistant named Roomy. 
+            content: `You are an Interior Design Validator. 
+            Analyze if the user's prompt is about room design, furniture, or architecture.
             
-            RULES:
-            1. If the user asks about rooms, furniture, colors, or architecture, give helpful, creative, and warm advice.
-            2. If the user asks something totally unrelated (like math or politics), politely explain that you are specialized in interior design and offer to help with a decor project instead.
-            3. Use a natural, conversational tone. Don't be a robot.` 
+            Return ONLY a JSON object:
+            {
+              "isRoom": true or false,
+              "reply": "A brief 1-sentence design tip if true, or a polite refusal if false"
+            }` 
           },
           { role: "user", content: userMessage }
         ],
-        temperature: 0.7, // Makes it feel more natural and less "robotic"
+        temperature: 0.1, // Low temperature for consistent JSON output
       }),
     });
 
     const data = await response.json();
-    
-    // Check if Groq sent back a valid message
-    const aiReply = data.choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!aiReply) {
-      throw new Error("No response from AI");
-    }
+    if (!content) throw new Error("No response from AI");
 
-    return NextResponse.json({ reply: aiReply });
+    // Parse the string response from AI into an actual JSON object
+    const parsedData = JSON.parse(content);
+
+    return NextResponse.json({ 
+      isRoom: parsedData.isRoom, 
+      reply: parsedData.reply 
+    });
 
   } catch (error) {
     console.error("Server Error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    // If the AI fails, we default to 'true' so we don't block the user's generation
+    return NextResponse.json({ isRoom: true, reply: "Proceeding with design..." });
   }
 }
